@@ -1,24 +1,34 @@
 # OM3D
-EPITA course for 5th year students
 
-Slides: https://docs.google.com/presentation/d/1qJhH0cmEMVQRhF37UOYDdw0ZKtd00_oQXW1dZrUbSL4/edit
+Please refer to different git branches for different submissions. Refer to the README in each one of them for more details.
 
-TP1: https://hackmd.io/@G2s9zdzlSd-RfTlBoN_x2A/ryY2BSgVo
+In all the cases, you can build and run the project in the same manner:
+- With VSCode + CMake extension ⇒ just run it **in debug mode**! #ItJustWorks
+- Manually:
+  - On Windows:
+	```ps1
+	$BUILD_TYPE=Debug
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+	cmake --build build --config $BUILD_TYPE
+	./build/TP
+	```
+  - On Linux:
+	```sh
+	#!/bin/bash
+	BUILD_TYPE=Debug
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+	cmake --build build --config $BUILD_TYPE
+	./build/TP
+	```
 
-TP2&3: https://hackmd.io/@G2s9zdzlSd-RfTlBoN_x2A/Bkm_EOFHo
+## TP-1
 
+Here you can find the implementation of 1st TP.
 
-### How to build
-Requirements: cmake 3.20 minimum, C++17, and OpenGL 4.5.
-```bash
-# At the project root
-mkdir -p TP/build/debug
-cd TP/build/debug
-cmake ../..
-make
-```
+## TP-2
 
-### Contact
-If you have a problem, please send a mail to
-- alexandre.lamure@epita.fr
-- gregoire.angerand@gmail.com
+Here you can find the implementation of last TP.
+
+## 1B-trees
+
+Here is our majestic project 🌳

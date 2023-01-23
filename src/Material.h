@@ -33,6 +33,8 @@ class Material {
     public:
         Material();
 
+        bool is_instanced() const;
+
         void set_program(std::shared_ptr<Program> prog);
         void set_blend_mode(BlendMode blend);
         void set_depth_test_mode(DepthTestMode depth);
@@ -47,12 +49,16 @@ class Material {
 
         void bind() const;
 
-        static std::shared_ptr<Material> empty_material();
-        static Material textured_material();
-        static Material textured_normal_mapped_material();
+        std::size_t hash() const;
+        bool operator==(const Material& other) const;
+
+        static std::shared_ptr<Material> empty_material(bool instanced = false);
+        static Material textured_material(bool instanced = false);
+        static Material textured_normal_mapped_material(bool instanced = false);
 
 
     private:
+        bool instanced;
         std::shared_ptr<Program> _program;
         std::vector<std::pair<u32, std::shared_ptr<Texture>>> _textures;
 
@@ -62,6 +68,14 @@ class Material {
 
 };
 
+}
+
+namespace std {
+    template<> struct hash<OM3D::Material> {
+        inline std::size_t operator()(const OM3D::Material& m) const {
+            return m.hash();
+        }
+    };
 }
 
 #endif // MATERIAL_H

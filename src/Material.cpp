@@ -9,6 +9,10 @@ namespace OM3D {
 Material::Material() {
 }
 
+bool Material::is_instanced() const {
+    return instanced;
+}
+
 void Material::set_program(std::shared_ptr<Program> prog) {
     _program = std::move(prog);
 }
@@ -92,26 +96,38 @@ void Material::bind() const {
     _program->bind();
 }
 
-std::shared_ptr<Material> Material::empty_material() {
+std::size_t Material::hash() const {
+    auto h = _program->hash();
+    for(const auto& t : _textures) h ^= t.second->hash();
+    return h;
+}
+bool Material::operator==(const Material& other) const {
+    return _program == other._program && _textures == other._textures;
+}
+
+std::shared_ptr<Material> Material::empty_material(bool instanced) {
     static std::weak_ptr<Material> weak_material;
     auto material = weak_material.lock();
     if(!material) {
         material = std::make_shared<Material>();
-        material->_program = Program::from_files("lit.frag", "basic.vert");
+        material->instanced = instanced;
+        material->_program = Program::from_files("lit.frag", instanced ? "basic_i.vert" : "basic.vert");
         weak_material = material;
     }
     return material;
 }
 
-Material Material::textured_material() {
+Material Material::textured_material(bool instanced) {
     Material material;
-    material._program = Program::from_files("lit.frag", "basic.vert", {"TEXTURED"});
+    material.instanced = instanced;
+    material._program = Program::from_files("lit.frag", instanced ? "basic_i.vert" : "basic.vert", {"TEXTURED"});
     return material;
 }
 
-Material Material::textured_normal_mapped_material() {
+Material Material::textured_normal_mapped_material(bool instanced) {
     Material material;
-    material._program = Program::from_files("lit.frag", "basic.vert", std::array<std::string, 2>{"TEXTURED", "NORMAL_MAPPED"});
+    material.instanced = instanced;
+    material._program = Program::from_files("lit.frag", instanced ? "basic_i.vert" : "basic.vert", std::array<std::string, 2>{"TEXTURED", "NORMAL_MAPPED"});
     return material;
 }
 

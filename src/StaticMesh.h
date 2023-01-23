@@ -13,11 +13,11 @@ namespace OM3D {
 class BoundingCriteria {
 	public:
 		BoundingCriteria() = default;
-		BoundingCriteria(glm::vec3, glm::length_t);
+		BoundingCriteria(glm::vec3, float);
 		bool test(glm::vec3 pos, glm::vec3 camera, const Frustum& frustum) const;
 	private:
 		glm::vec3 _center;
-		glm::length_t _radius;
+		float _radius;
 };
 
 struct MeshData {
@@ -35,7 +35,7 @@ class StaticMesh : NonCopyable {
         StaticMesh(const MeshData& data);
 
 		bool test(glm::vec3 pos, glm::vec3 camera, const Frustum& frustum) const;
-        void draw() const;
+        void draw(std::size_t instances = 0) const;
 
     private:
         TypedBuffer<Vertex> _vertex_buffer;

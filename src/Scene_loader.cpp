@@ -398,12 +398,12 @@ Result<std::unique_ptr<Scene>> Scene::from_gltf(const std::string& file_name) {
                     auto normal = load_texture(normal_info, false);
 
                     if(!albedo) {
-                        mat = Material::empty_material();
+                        mat = Material::empty_material(true);
                     } else if(!normal) {
-                        mat = std::make_shared<Material>(Material::textured_material());
+                        mat = std::make_shared<Material>(Material::textured_material(true));
                         mat->set_texture(0u, albedo);
                     } else {
-                        mat = std::make_shared<Material>(Material::textured_normal_mapped_material());
+                        mat = std::make_shared<Material>(Material::textured_normal_mapped_material(true));
                         mat->set_texture(0u, albedo);
                         mat->set_texture(1u, normal);
                     }

@@ -3,6 +3,7 @@
 #include <TypedBuffer.h>
 
 #include <shader_structs.h>
+#include <unordered_map>
 
 namespace OM3D {
 
@@ -48,8 +49,19 @@ void Scene::render(const Camera& camera) const {
     light_buffer.bind(BufferUsage::Storage, 1);
 
     // Render every object
+    std::unordered_map<std::shared_ptr<Material>, std::vector<const SceneObject*>> objects;
     for(const SceneObject& obj : _objects) if(obj.test(camera.position(), frustum)) {
-        obj.render();
+        if(obj._material->is_instanced()) objects[obj._material].push_back(&obj);
+        else obj.render();
+    }
+    for(const auto& mos : objects){
+        mos.first->bind();
+        const auto instances = mos.second.size();
+        std::vector<glm::mat4> mats(instances);
+        for(std::size_t i = 0; i < instances; i++) mats[i] = mos.second[i]->transform();
+        TypedBuffer<glm::mat4> modeltrmat_buffer(mats);
+        modeltrmat_buffer.bind(BufferUsage::Storage, 10);
+        mos.second[0]->_mesh->draw(instances);
     }
 }
 

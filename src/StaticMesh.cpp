@@ -4,7 +4,7 @@
 
 namespace OM3D {
 
-BoundingCriteria::BoundingCriteria(glm::vec3 center, glm::length_t rad) : _center(center), _radius(rad) {}
+BoundingCriteria::BoundingCriteria(glm::vec3 center, float rad) : _center(center), _radius(rad) {}
 
 bool BoundingCriteria::test(glm::vec3 boxpos, glm::vec3 cp, const Frustum& frustum) const {
 	auto pos = (boxpos+_center)-cp;
@@ -23,8 +23,8 @@ StaticMesh::StaticMesh(const MeshData& data) :
     _index_buffer(data.indices) {
 	glm::vec3 center;
 	for(auto& v : data.vertices) center += v.position / (float) data.vertices.size();
-	glm::length_t radius = 0;
-	for(auto& v : data.vertices) radius = glm::max(radius, (v.position - center).length());
+	float radius = 0;
+	for(auto& v : data.vertices) radius = glm::max(radius, glm::length(v.position - center));
 	_bb = BoundingCriteria(center, radius);
 }
 
@@ -32,7 +32,7 @@ bool StaticMesh::test(glm::vec3 pos, glm::vec3 camera, const Frustum& frustum) c
 	return _bb.test(pos, camera, frustum);
 }
 
-void StaticMesh::draw() const {
+void StaticMesh::draw(std::size_t instances) const {
     _vertex_buffer.bind(BufferUsage::Attribute);
     _index_buffer.bind(BufferUsage::Index);
 
@@ -53,7 +53,8 @@ void StaticMesh::draw() const {
     glEnableVertexAttribArray(3);
     glEnableVertexAttribArray(4);
 
-    glDrawElements(GL_TRIANGLES, int(_index_buffer.element_count()), GL_UNSIGNED_INT, nullptr);
+    if(instances > 0) glDrawElementsInstanced(GL_TRIANGLES, int(_index_buffer.element_count()), GL_UNSIGNED_INT, nullptr, instances);
+    else glDrawElements(GL_TRIANGLES, int(_index_buffer.element_count()), GL_UNSIGNED_INT, nullptr);
 }
 
 }

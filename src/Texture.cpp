@@ -77,6 +77,14 @@ const glm::uvec2& Texture::size() const {
     return _size;
 }
 
+std::size_t Texture::hash() const {
+    return _handle.get();
+}
+
+bool Texture::operator==(const Texture& other) const {
+    return _handle == other._handle;
+}
+
 // Return number of mip levels needed
 u32 Texture::mip_levels(glm::uvec2 size) {
     const float side = float(std::max(size.x, size.y));

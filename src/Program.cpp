@@ -261,4 +261,12 @@ void Program::set_uniform(u32 name_hash, const glm::mat4& value) {
     }
 }
 
+std::size_t Program::hash() const {
+    return _handle.get();
+}
+
+bool Program::operator==(const Program& other) const {
+    return _handle == other._handle;
+}
+
 }

@@ -58,6 +58,9 @@ class Program : NonCopyable {
             set_uniform(str_hash(name), value);
         }
 
+        std::size_t hash() const;
+        bool operator==(const Program& other) const;
+
     private:
         void fetch_uniform_locations();
         int find_location(u32 hash);
@@ -69,6 +72,14 @@ class Program : NonCopyable {
 
 };
 
+}
+
+namespace std {
+    template<> struct hash<OM3D::Program> {
+        inline std::size_t operator()(const OM3D::Program& p) const {
+            return p.hash();
+        }
+    };
 }
 
 #endif // PROGRAM_H

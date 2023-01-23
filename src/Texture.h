@@ -37,6 +37,9 @@ class Texture {
 
         const glm::uvec2& size() const;
 
+        std::size_t hash() const;
+        bool operator==(const Texture& other) const;
+
         static u32 mip_levels(glm::uvec2 size);
 
     private:
@@ -47,6 +50,14 @@ class Texture {
         ImageFormat _format;
 };
 
+}
+
+namespace std {
+    template<> struct hash<OM3D::Texture> {
+        inline std::size_t operator()(const OM3D::Texture& t) const {
+            return t.hash();
+        }
+    };
 }
 
 #endif // TEXTURE_H

@@ -16,6 +16,7 @@ class ByteBuffer : NonCopyable {
         ByteBuffer(const void* data, size_t size);
         ~ByteBuffer();
 
+        void clear();
         void bind(BufferUsage usage) const;
         void bind(BufferUsage usage, u32 index) const;
 
@@ -24,7 +25,7 @@ class ByteBuffer : NonCopyable {
         BufferMapping<byte> map_bytes(AccessType access = AccessType::ReadWrite);
 
     protected:
-        void* map_internal(AccessType access);
+        void* map_internal(AccessType access) const;
         const GLHandle& handle() const;
 
     private:

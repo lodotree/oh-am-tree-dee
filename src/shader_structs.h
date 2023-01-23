@@ -12,6 +12,8 @@ namespace shader {
 
 using namespace glm;
 
+#define _GLSL_ALIGN_ alignas(16)
+#define _GLSL_CPP_
 #include <../shaders/structs.glsl>
 
 }

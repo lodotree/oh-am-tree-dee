@@ -62,6 +62,9 @@ void process_inputs(GLFWwindow* window, Camera& camera) {
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
             speed *= 10.0f;
         }
+        if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+            speed *= 50.0f;
+        }
 
         if(glm::length(movement) > 0.0f) {
             const glm::vec3 new_pos = camera.position() + movement * delta_time * speed;
@@ -82,14 +85,11 @@ void process_inputs(GLFWwindow* window, Camera& camera) {
     mouse_pos = new_mouse_pos;
 }
 
-
-std::unique_ptr<Scene> create_default_scene() {
-    auto scene = std::make_unique<Scene>();
-
+Result<Scene> load_scene(const std::string& path = "cube.glb", bool chunky = false){
     // Load default cube model
-    auto result = Scene::from_gltf(std::string(data_path) + "cube.glb");
-    ALWAYS_ASSERT(result.is_ok, "Unable to load default scene");
-    scene = std::move(result.value);
+    auto result = Scene::from_gltf(std::string(data_path) + path, chunky);
+    if(!result.is_ok) return {false, {}};
+    auto scene = std::move(result.value);
 
     // Add lights
     {
@@ -97,17 +97,17 @@ std::unique_ptr<Scene> create_default_scene() {
         light.set_position(glm::vec3(1.0f, 2.0f, 4.0f));
         light.set_color(glm::vec3(0.0f, 10.0f, 0.0f));
         light.set_radius(100.0f);
-        scene->add_object(std::move(light));
+        scene.add_object(std::move(light));
     }
     {
         PointLight light;
         light.set_position(glm::vec3(1.0f, 2.0f, -4.0f));
         light.set_color(glm::vec3(10.0f, 0.0f, 0.0f));
         light.set_radius(50.0f);
-        scene->add_object(std::move(light));
+        scene.add_object(std::move(light));
     }
 
-    return scene;
+    return {true, std::move(scene) };
 }
 
 
@@ -130,19 +130,39 @@ int main(int, char**) {
     init_graphics();
 
     ImGuiRenderer imgui(window);
+    char imgui_scene_name_buffer[1024] = {};
+    bool imgui_gen_scene_chunking = false;
+    bool imgui_scene_force_fullres = false;
 
-    std::unique_ptr<Scene> scene = create_default_scene();
-    SceneView scene_view(scene.get());
+    auto lodg = GPULODGen();
+
+    Scene scene;
+    {
+        auto scene_k = load_scene();
+        ALWAYS_ASSERT(scene_k.is_ok, "Unable to load default scene");
+        scene = std::move(scene_k.value);
+    }
+    auto scene_up = scene.upload();
+    SceneView scene_view(scene_up.get());
 
     auto tonemap_program = Program::from_file("tonemap.comp");
+    auto zpass_program = Program::from_files("zpass.frag", "zpass.vert");
+    auto screen_program = Program::from_files("screen.frag", "screen.vert");
 
     Texture depth(window_size, ImageFormat::Depth32_FLOAT);
+    Texture albedo(window_size, ImageFormat::RGBA8_sRGB);
+    Texture normal(window_size, ImageFormat::RGBA8_UNORM);
     Texture lit(window_size, ImageFormat::RGBA16_FLOAT);
     Texture color(window_size, ImageFormat::RGBA8_UNORM);
-    Framebuffer main_framebuffer(&depth, std::array{&lit});
+    // Framebuffer z_framebuffer(&depth);
+    Framebuffer g_framebuffer(&depth, std::array{&albedo, &normal});
+    Framebuffer main_framebuffer(nullptr, std::array{&lit});
     Framebuffer tonemap_framebuffer(nullptr, std::array{&color});
 
     for(;;) {
+        StaticMeshUploaded::DEBUG_VERTS_DRAWN = 0;
+        StaticMeshUploaded::DEBUG_TRIS_DRAWN = 0;
+
         glfwPollEvents();
         if(glfwWindowShouldClose(window) || glfwGetKey(window, GLFW_KEY_ESCAPE)) {
             break;
@@ -156,8 +176,26 @@ int main(int, char**) {
 
         // Render the scene
         {
+            // Z-pass
+            // z_framebuffer.bind();
+            // zpass_program->bind();
+            // scene_view.render(false);
+            // G-pass
+            g_framebuffer.bind();
+            scene_view.render(true, imgui_scene_force_fullres);
+            // Screen
+            glDisable(GL_DEPTH_TEST);
+            screen_program->bind();
+			scene_view.bind_lights();
             main_framebuffer.bind();
-            scene_view.render();
+            albedo.bind(0);
+            normal.bind(1);
+            depth.bind(2);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glEnable(GL_DEPTH_TEST);
+            // // Legacy forward pass
+            // main_framebuffer.bind();
+            // scene_view.render(true);
         }
 
         // Apply a tonemap in compute shader
@@ -174,21 +212,26 @@ int main(int, char**) {
         // GUI
         imgui.start();
         {
-            char buffer[1024] = {};
-            if(ImGui::InputText("Load scene", buffer, sizeof(buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
-                auto result = Scene::from_gltf(buffer);
+            ImGui::Text("%llu tris, %llu vertices", StaticMeshUploaded::DEBUG_TRIS_DRAWN, StaticMeshUploaded::DEBUG_VERTS_DRAWN);
+            if(ImGui::Checkbox("Generate chunky clustering", &imgui_gen_scene_chunking));
+            if(ImGui::InputText("Load scene", imgui_scene_name_buffer, sizeof(imgui_scene_name_buffer), ImGuiInputTextFlags_EnterReturnsTrue)) {
+                auto result = load_scene(imgui_scene_name_buffer, imgui_gen_scene_chunking);
                 if(!result.is_ok) {
-                    std::cerr << "Unable to load scene (" << buffer << ")" << std::endl;
+                    std::cerr << "Unable to load scene (" << imgui_scene_name_buffer << ")" << std::endl;
                 } else {
+                    scene_up = nullptr;
                     scene = std::move(result.value);
-                    scene_view = SceneView(scene.get());
+                    scene_up = scene.upload();
+                    scene_view = scene_view.transfer(scene_up.get());
                 }
             }
+            if(ImGui::Checkbox("Force full resolution", &imgui_scene_force_fullres));
+            if(ImGui::Checkbox("Debug chunky clusters", &ChunkUploaded::DEBUG_CLUSTER_STATUS));
         }
         imgui.finish();
 
         glfwSwapBuffers(window);
     }
 
-    scene = nullptr; // destroy scene and child OpenGL objects
+    scene_up = nullptr; // destroy scene and child OpenGL objects
 }

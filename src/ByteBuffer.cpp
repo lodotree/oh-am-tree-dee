@@ -23,6 +23,11 @@ ByteBuffer::~ByteBuffer() {
     }
 }
 
+void ByteBuffer::clear(){
+    GLubyte val = 0;
+    glClearNamedBufferData(_handle.get(), GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, &val);
+}
+
 void ByteBuffer::bind(BufferUsage usage) const {
     glBindBuffer(buffer_usage_to_gl(usage), _handle.get());
 }
@@ -40,7 +45,7 @@ BufferMapping<byte> ByteBuffer::map_bytes(AccessType access) {
     return BufferMapping<byte>(map_internal(access), byte_size(), handle());
 }
 
-void* ByteBuffer::map_internal(AccessType access) {
+void* ByteBuffer::map_internal(AccessType access) const {
     DEBUG_ASSERT(_handle.is_valid() && _size);
     return glMapNamedBuffer(_handle.get(), access_type_to_gl(access));
 }

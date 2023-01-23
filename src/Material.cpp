@@ -33,7 +33,7 @@ void Material::set_texture(u32 slot, std::shared_ptr<Texture> tex) {
     }
 }
 
-void Material::bind() const {
+void Material::bind(bool shade) const {
     switch(_blend_mode) {
         case BlendMode::None:
             glDisable(GL_BLEND);
@@ -86,10 +86,12 @@ void Material::bind() const {
 		break;
 	}
 
-    for(const auto& texture : _textures) {
-        texture.second->bind(texture.first);
+    if(shade){
+        for(const auto& texture : _textures) {
+            texture.second->bind(texture.first);
+        }
+        _program->bind();
     }
-    _program->bind();
 }
 
 std::shared_ptr<Material> Material::empty_material() {
@@ -97,7 +99,7 @@ std::shared_ptr<Material> Material::empty_material() {
     auto material = weak_material.lock();
     if(!material) {
         material = std::make_shared<Material>();
-        material->_program = Program::from_files("lit.frag", "basic.vert");
+        material->_program = Program::from_files("deferred.frag", "basic.vert");
         weak_material = material;
     }
     return material;
@@ -105,13 +107,13 @@ std::shared_ptr<Material> Material::empty_material() {
 
 Material Material::textured_material() {
     Material material;
-    material._program = Program::from_files("lit.frag", "basic.vert", {"TEXTURED"});
+    material._program = Program::from_files("deferred.frag", "basic.vert", {"TEXTURED"});
     return material;
 }
 
 Material Material::textured_normal_mapped_material() {
     Material material;
-    material._program = Program::from_files("lit.frag", "basic.vert", std::array<std::string, 2>{"TEXTURED", "NORMAL_MAPPED"});
+    material._program = Program::from_files("deferred.frag", "basic.vert", std::array<std::string, 2>{"TEXTURED", "NORMAL_MAPPED"});
     return material;
 }
 

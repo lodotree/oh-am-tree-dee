@@ -1,0 +1,61 @@
+#version 450
+
+//! LOD compute shader
+
+#include "utils.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+struct VertexData {
+	vec3 position;
+	vec3 normal;
+	vec2 uv;
+	vec4 tangent;
+	vec3 color;
+}
+
+layout(std140, binding = 0) restrict buffer VertexBuffer {
+	VertexData in_vertices[]; //len=V
+};
+layout(std140, binding = 1) restrict buffer VertexIndexBuffer {
+	u64 in_vertindices[]; //len=I
+};
+uniform float proxima = 1.0;
+layout(std140, binding = 2) restrict buffer VertexIndexVoxelBuffer {
+	uvec3 out_voxels[];//len=V
+};
+
+
+// "Trivial" LOD
+
+// iterat all vertices [BAD]
+// group by proximity [BAD]
+// reform polys [FINE]
+// write polys to output [GOOD]
+
+// What about voxel grids?
+
+// Create a running accumulator!
+// Problem: how to subdivise the entire world?
+// since some world detail voxels _will_ be empty
+// and some want
+// Prop 1: multipass
+// ideally for second pass we want each shader invocation to treat a voxel
+// means the first pass should accumulate into every voxel (and create them) all vertex indices occupying it
+// Question: what about preservation of polys?
+// since by dumping vertex indices into a voxel, we loose the backwards mapping ability
+// ans: second pass computes some vertices per voxel, _and_ produces a bwds map of vert index to vert index
+// so we need a third pass to traverse the backwards map and yeet
+// so
+// 1. map vertex to voxel (CPU/GPU?)
+// 2. sort by voxels (CPU/GPU??)
+// 3. merge vertices within every voxel (GPU)
+// 4. reshape polygons (GPU)
+//
+// oh and also we need to know how to chunk the world up, and how to do it avoiding boundary problems
+// -> powers of 2?
+// -> steal from nanites? :panik:
+
+void main(){
+	//TODO
+}

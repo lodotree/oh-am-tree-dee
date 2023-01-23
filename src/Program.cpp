@@ -243,6 +243,24 @@ void Program::set_uniform(u32 name_hash, glm::vec4 value) {
     }
 }
 
+void Program::set_uniform(u32 name_hash, glm::uvec2 value) {
+    if(const int loc = find_location(name_hash); loc >= 0) {
+        glProgramUniform2ui(_handle.get(), loc, value.x, value.y);
+    }
+}
+
+void Program::set_uniform(u32 name_hash, glm::uvec3 value) {
+    if(const int loc = find_location(name_hash); loc >= 0) {
+        glProgramUniform3ui(_handle.get(), loc, value.x, value.y, value.z);
+    }
+}
+
+void Program::set_uniform(u32 name_hash, glm::uvec4 value) {
+    if(const int loc = find_location(name_hash); loc >= 0) {
+        glProgramUniform4ui(_handle.get(), loc, value.x, value.y, value.z, value.w);
+    }
+}
+
 void Program::set_uniform(u32 name_hash, const glm::mat2& value) {
     if(const int loc = find_location(name_hash); loc >= 0) {
         glProgramUniformMatrix2fv(_handle.get(), loc, 1, false, reinterpret_cast<const float*>(&value));

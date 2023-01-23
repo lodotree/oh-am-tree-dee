@@ -42,6 +42,11 @@ class BufferMapping : BufferMappingBase {
             return data()[index];
         }
 
+        const T& operator[](size_t index) const {
+            DEBUG_ASSERT(index < element_count());
+            return data()[index];
+        }
+
     private:
         friend class ByteBuffer;
 

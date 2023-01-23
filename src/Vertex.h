@@ -8,11 +8,11 @@
 namespace OM3D {
 
 struct Vertex {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 uv;
-    glm::vec4 tangent_bitangent_sign = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
-    glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); // to avoid completly black meshes if no color is present
+    alignas(sizeof(glm::vec4)) glm::vec3 position;
+    alignas(sizeof(glm::vec4)) glm::vec3 normal;
+    alignas(sizeof(glm::vec4)) glm::vec2 uv;
+    alignas(sizeof(glm::vec4)) glm::vec4 tangent_bitangent_sign = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    alignas(sizeof(glm::vec4)) glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f); // to avoid completly black meshes if no color is present
 };
 
 }

@@ -1,0 +1,116 @@
+#version 450
+#extension GL_NV_shader_atomic_float : require
+
+//! LOD Vertex Clustering first pass compute shader
+
+#include "utils.glsl"
+
+// layout(local_size_x = 8, local_size_y = 8) in;
+layout(local_size_x = 1024) in; //V
+
+// Parameters
+
+// not a uniform because uniforms failed us
+
+// layout(binding = 0) uniform Data {
+//     LODData loddata;
+// };
+
+layout(std430, binding = 39) restrict readonly buffer Data {
+    LODData loddata;
+};
+
+// Input geometry
+// We only accept tris
+
+layout(std430, binding = 0) restrict readonly buffer VertexBuffer {
+	/// old vertex id -> old vertex data
+	VertexData in_vertices[]; //len=V
+};
+layout(std430, binding = 1) restrict readonly buffer VertexIndexBuffer {
+	/// old vertex index id -> old vertex id
+	uint in_vertindices[]; //len=I
+};
+
+// Output quadrics
+
+layout(std430, binding = 2) restrict buffer QEMMapBuffer {
+	/// single-scale QEM map of quadrics in each cell.
+	/// cell id -> quadric
+	QuadricCellInfo out_qem[]; //len=C
+};
+
+layout(std430, binding = 3) restrict writeonly buffer VertexCellIndexBuffer {
+	/// Maps vertex id to the cell id it occupies.
+	/// old vertex id -> cell id
+	uint out_cellidx[]; //len=V
+};
+
+layout(std430, binding = 4) restrict writeonly buffer Stuff {
+	/// Maps vertex id to its position
+	/// old vertex id -> position
+	vec3 out_qpos[]; //len=V
+};
+
+// Compute
+
+/// Calculate quadric matrix for a vertex.
+mat4 calcQMat(VertexData v){
+	// A
+	mat3 A;
+	A[0][0] = v.normal.x*v.normal.x;
+	A[0][1] = v.normal.x*v.normal.y;
+	A[0][2] = v.normal.x*v.normal.z;
+	A[1][0] = v.normal.y*v.normal.x;
+	A[1][1] = v.normal.y*v.normal.y;
+	A[1][2] = v.normal.y*v.normal.z;
+	A[2][0] = v.normal.z*v.normal.x;
+	A[2][1] = v.normal.z*v.normal.y;
+	A[2][2] = v.normal.z*v.normal.z;
+	// b
+	vec3 b = -A*v.position;
+	// c
+	float c = dot(v.position, A*v.position);
+	// pack
+	mat4 ret = mat4(A);
+	ret[3] = vec4(b, c);
+	return ret;
+}
+
+uint calcCellIndex(VertexData v){
+	uvec3 cellz = loddata.cellz;
+	vec3 rfpos = (v.position - loddata.aabb_aa)/(loddata.aabb_bb - loddata.aabb_aa);
+	uvec3 cp = uvec3(floor(rfpos*vec3(cellz)));
+	return (cp.x*cellz.y + cp.y)*cellz.z + cp.z;
+}
+
+/// Linearly atomically add quadric matrix of a vertex to QEM map.
+/// @argument i cell index.
+/// @argument pos vertex position.
+/// @argument qmat quadric matrix.
+void addQMat(uint i, VertexData v, mat4 qmat){
+	atomicAdd(out_qem[i].count, 1);
+	for(uint j = 0; j < 3; j++) atomicAdd(out_qem[i].sumpos[j], v.position[j]);
+	for(uint j = 0; j < 3; j++) atomicAdd(out_qem[i].sumnorm[j], v.normal[j]);
+	for(uint j = 0; j < 3; j++) atomicAdd(out_qem[i].sumcolor[j], v.color[j]);
+	for(uint j = 0; j < 4; j++){
+		atomicAdd(out_qem[i].quadric[j].x, qmat[j].x);
+		atomicAdd(out_qem[i].quadric[j].y, qmat[j].y);
+		atomicAdd(out_qem[i].quadric[j].z, qmat[j].z);
+		atomicAdd(out_qem[i].quadric[j].w, qmat[j].w);
+	}
+}
+
+void main(){
+	// 1. Calculate Q-Matrix of the vertex
+	// 2. add it to the QEM map
+	uint /* old vertex id */ i = gl_GlobalInvocationID.x;
+	if(i >= loddata.v_count) return;
+	VertexData v = in_vertices[i];
+	mat4 qmat = calcQMat(v);
+	uint /* cell id */ ci = calcCellIndex(v);
+	addQMat(ci, v, qmat);
+	out_cellidx[i] = ci;
+	// out_qpos[i] = vec3(0.1,.2,.3);
+	out_qpos[i] = v.position;
+}

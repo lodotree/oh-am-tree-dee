@@ -1,0 +1,206 @@
+#version 450
+#extension GL_NV_shader_atomic_float : require
+
+//! LOD Vertex Clustering third pass compute shader
+
+#include "utils.glsl"
+
+layout(local_size_x = 1024) in; // I/3
+
+// Parameters
+
+// not a uniform because uniforms failed us
+
+// layout(binding = 0) uniform Data {
+//     LODData loddata;
+// };
+
+layout(std430, binding = 39) restrict readonly buffer Data {
+    LODData loddata;
+};
+
+// Input cells
+
+layout(std430, binding = 0) restrict readonly buffer OldVertexBuffer {
+	/// old vertex id -> old vertex data
+	VertexData in_old_vertices[]; //len=V
+};
+layout(std430, binding = 1) restrict readonly buffer OldVertexIndexBuffer {
+	/// Standard VAO attrib representing tris as vertex indices.
+	/// old vertex index id -> old vertex id
+	uint in_old_vertindices[]; //len=I
+};
+layout(std430, binding = 2) restrict readonly buffer VertexCellIndexBuffer {
+	/// vertex to cell it occupies
+	/// old vertex id -> cell id
+	uint in_cellidx[]; //len=V
+};
+
+// Input vertices
+
+layout(std430, binding = 3) restrict readonly buffer QEMMapBuffer {
+	/// cell id -> quadric
+	QuadricCellInfo in_qem[]; //len=C
+};
+
+layout(std430, binding = 4) restrict readonly buffer Cell2VertexBuffer {
+	/// Maps cell id to new vertex id.
+	/// cell id -> new vertex id
+	uint in_vidx[]; //len=C
+};
+
+layout(std430, binding = 5) restrict readonly buffer VertexCountBuffer {
+	/// number of new vertices
+	uint in_vcount; //V'
+};
+
+layout(std430, binding = 6) restrict readonly buffer VertexBuffer {
+	/// new vertex id -> vertex data
+	VertexData in_vertices[]; //len=V'
+};
+
+// Output tris
+
+layout(std430, binding = 7) restrict buffer VCountBuffer {
+	/// number of spwnd vertices
+	uint out_vcount; //V''
+};
+
+layout(std430, binding = 8) restrict writeonly buffer OutVertexBuffer {
+	/// spwnd vertex id -> spwnd vertex data
+	VertexData out_vertices[]; //len=V''<=max(C, V)
+};
+
+layout(std430, binding = 9) restrict buffer TriangleCountBuffer {
+	/// number of spwnd triangles
+	uint out_tricount; //I'
+};
+
+layout(std430, binding = 10) restrict writeonly buffer VertexIndexBuffer {
+	/// spwnd vertex index id -> spwnd vertex id
+	uint out_vertindices[]; //len=I'<=max(C, I)
+};
+
+// Compute
+
+/// old vertex index id -> cell id
+uint calcCellIndex(uint vi){
+	return in_cellidx[in_old_vertindices[vi]];
+}
+
+const vec3 paletto[50] = vec3[](
+	vec3(224./255.,141./255.,49./255.),
+	vec3(68./255.,101./255.,219./255.),
+	vec3(102./255.,194./255.,77./255.),
+	vec3(137./255.,95./255.,221./255.),
+	vec3(175./255.,185./255.,50./255.),
+	vec3(160./255.,67./255.,185./255.),
+	vec3(67./255.,153./255.,53./255.),
+	vec3(223./255.,81./255.,183./255.),
+	vec3(58./255.,195./255.,125./255.),
+	vec3(201./255.,120./255.,232./255.),
+	vec3(131./255.,164./255.,65./255.),
+	vec3(105./255.,81./255.,181./255.),
+	vec3(207./255.,164./255.,57./255.),
+	vec3(115./255.,137./255.,239./255.),
+	vec3(229./255.,101./255.,53./255.),
+	vec3(66./255.,107./255.,194./255.),
+	vec3(97./255.,111./255.,24./255.),
+	vec3(174./255.,63./255.,151./255.),
+	vec3(63./255.,123./255.,49./255.),
+	vec3(214./255.,71./255.,136./255.),
+	vec3(88./255.,200./255.,169./255.),
+	vec3(219./255.,57./255.,99./255.),
+	vec3(61./255.,194./255.,204./255.),
+	vec3(204./255.,57./255.,56./255.),
+	vec3(77./255.,169./255.,217./255.),
+	vec3(174./255.,80./255.,32./255.),
+	vec3(108./255.,150./255.,217./255.),
+	vec3(143./255.,128./255.,50./255.),
+	vec3(115./255.,68./255.,145./255.),
+	vec3(114./255.,184./255.,121./255.),
+	vec3(147./255.,95./255.,176./255.),
+	vec3(187./255.,183./255.,106./255.),
+	vec3(103./255.,94./255.,162./255.),
+	vec3(54./255.,125./255.,76./255.),
+	vec3(221./255.,135./255.,207./255.),
+	vec3(32./255.,110./255.,84./255.),
+	vec3(224./255.,120./255.,117./255.),
+	vec3(58./255.,151./255.,124./255.),
+	vec3(170./255.,69./255.,83./255.),
+	vec3(132./255.,147./255.,85./255.),
+	vec3(162./255.,135./255.,210./255.),
+	vec3(93./255.,95./255.,34./255.),
+	vec3(186./255.,172./255.,238./255.),
+	vec3(154./255.,105./255.,45./255.),
+	vec3(68./255.,104./255.,162./255.),
+	vec3(220./255.,153./255.,107./255.),
+	vec3(164./255.,98./255.,148./255.),
+	vec3(160./255.,84./255.,60./255.),
+	vec3(228./255.,140./255.,170./255.),
+	vec3(152./255.,65./255.,103./255.)
+);
+
+vec3 color4id(uint id){
+	/*float r, g, b;
+    // notice the 256's instead of 255
+    r = (id % 256) / 255.0f;
+    g = ((id / 256) % 256) / 255.0f;
+    b = ((id / (256 * 256)) % 256) / 255.0f;
+    return vec3(r, g, b);*/
+	return paletto[id%50];
+}
+
+void main(){
+	// 1. get the triangle
+	// 2. get the cells of the 3 corners
+	// 3. skip if degenerate (triangle occupying < 3 cells)
+	// 4. construct the triangle
+	// 5. push the indices
+	uint /* old vertex index id */ i = gl_GlobalInvocationID.x * 3;
+	if(i >= loddata.vi_count) return;
+	uint /* cell id*/ ci1 = calcCellIndex(i);
+	uint /* cell id*/ ci2 = calcCellIndex(i+1);
+	uint /* cell id*/ ci3 = calcCellIndex(i+2);
+	uint C = loddata.cellz.x*loddata.cellz.y*loddata.cellz.z;
+	if(ci1 >= C || ci2 >= C || ci3 >= C) return;
+	//
+	if(loddata.mode == 0){
+		out_vcount = loddata.v_count;
+		out_tricount = loddata.vi_count/3;
+		uint /* old vertex id */ vi1 = in_old_vertindices[i];
+		uint /* old vertex id */ vi2 = in_old_vertindices[i+1];
+		uint /* old vertex id */ vi3 = in_old_vertindices[i+2];
+		VertexData vd1 = in_old_vertices[vi1];
+		VertexData vd2 = in_old_vertices[vi2];
+		VertexData vd3 = in_old_vertices[vi3];
+		// vd1.color = color4id(ci1);
+		// vd2.color = color4id(ci2);
+		// vd3.color = color4id(ci3);
+		out_vertices[vi1] = vd1;
+		out_vertices[vi2] = vd2;
+		out_vertices[vi3] = vd3;
+		out_vertindices[i] = vi1;
+		out_vertindices[i+1] = vi2;
+		out_vertindices[i+2] = vi3;
+	} else {
+		out_vcount = in_vcount;
+		if(ci1 != ci2 && ci1 != ci3 && ci2 != ci3){
+			uint /* new vertex id */ vid1 = in_vidx[ci1];
+			uint /* new vertex id */ vid2 = in_vidx[ci2];
+			uint /* new vertex id */ vid3 = in_vidx[ci3];
+			if(vid1 >= in_vcount || vid2 >= in_vcount || vid3 >= in_vcount) return;
+			uint tri = atomicAdd(out_tricount, 1);
+			uint /* spwnd vertex index id */ tri_i = tri*3;
+			out_vertindices[tri_i] = vid1;
+			out_vertindices[tri_i+1] = vid2;
+			out_vertindices[tri_i+2] = vid3;
+			out_vertices[vid1] = in_vertices[vid1];
+			out_vertices[vid2] = in_vertices[vid2];
+			out_vertices[vid3] = in_vertices[vid3];
+			// out_vertices[vid1].color = color4id(ci1);
+			// out_vertices[vid2].color = color4id(ci2);
+			// out_vertices[vid3].color = color4id(ci3);
+		}
+	}
+}

@@ -1,3 +1,4 @@
+#define _GLSL_ALIGN_
 #include "structs.glsl"
 
 float sqr(float x) {

@@ -240,7 +240,7 @@ void ImGuiRenderer::render(const ImDrawData* draw_data) {
     const ImVec2 clip_scale = draw_data->FramebufferScale;
 
     _material.set_uniform(HASH("viewport_size"), glm::vec2(draw_data->DisplaySize.x, draw_data->DisplaySize.y));
-    _material.bind();
+    _material.bind(true);
 
     glEnable(GL_SCISSOR_TEST);
     DEFER(glDisable(GL_SCISSOR_TEST));

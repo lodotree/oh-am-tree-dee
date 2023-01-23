@@ -1,0 +1,73 @@
+#version 450
+#extension GL_NV_shader_atomic_float : require
+
+//! LOD Vertex Clustering second pass compute shader
+
+#include "utils.glsl"
+
+layout(local_size_x = 1024) in; //C
+
+// Parameters
+
+// not a uniform because uniforms failed us
+
+// layout(binding = 0) uniform Data {
+//     LODData loddata;
+// };
+
+layout(std430, binding = 39) restrict readonly buffer Data {
+    LODData loddata;
+};
+
+// Input cells
+layout(std430, binding = 0) restrict readonly buffer QEMMapBuffer {
+	/// cell id -> quadric
+	QuadricCellInfo in_qem[]; //len=C
+};
+
+// Output vertices
+
+layout(std430, binding = 1) restrict buffer VertexCountBuffer {
+	/// number of new vertices
+	uint out_vcount; //V'
+};
+
+layout(std430, binding = 2) restrict writeonly buffer Cell2VertexBuffer {
+	/// Maps cell id to new vertex id.
+	/// cell id -> new vertex id
+	uint out_vidx[]; //len=C
+};
+
+layout(std430, binding = 3) restrict writeonly buffer VertexBuffer {
+	/// new vertex id -> new vertex data
+	VertexData out_vertices[]; //len=V'<=C
+};
+
+
+// Compute
+
+void main(){
+	// 1. Get cell info
+	// 1.1. skip if count is 0
+	// 2. Attempt to invert the quadric to calc pos
+	// 2.2. if not invertible cell vertex pos is the average pos
+	// 3. Calculate associated normals and colors :shrug:
+	// 4. Upload cell vertex data
+	uint /* cell id */ ci = gl_GlobalInvocationID.x;
+	if(ci >= loddata.cellz.x*loddata.cellz.y*loddata.cellz.z) return;
+	QuadricCellInfo qci = in_qem[ci];
+	if(qci.count == 0) return;
+	uint /* new vertex id */ vi = atomicAdd(out_vcount, 1);
+	vec3 pos;
+	// if(abs(determinant(qci.quadric)) > 1E-8) pos = (inverse(qci.quadric)*vec4(0,0,0,1)).xyz;
+	// else pos = qci.sumpos/qci.count;
+	pos = qci.sumpos/qci.count;
+	out_vidx[ci] = vi;
+	VertexData vd;
+	vd.position = pos;
+	vd.normal = qci.sumnorm/qci.count;
+	vd.uv = vec2(0.);
+	vd.tangent = vec4(0.);
+	vd.color = qci.sumcolor/qci.count;
+	out_vertices[vi] = vd;
+}

@@ -23,7 +23,7 @@ class TypedBuffer : public ByteBuffer {
             return byte_size() / sizeof(T);
         }
 
-        BufferMapping<T> map(AccessType access = AccessType::ReadWrite) {
+        BufferMapping<T> map(AccessType access = AccessType::ReadWrite) const {
             return BufferMapping<T>(ByteBuffer::map_internal(access), byte_size(), handle());
         }
 };

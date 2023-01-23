@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "StaticMesh.h"
+#include "GPULODGen.h"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -286,7 +287,7 @@ static void compute_tangents(MeshData& mesh) {
 }
 
 
-Result<std::unique_ptr<Scene>> Scene::from_gltf(const std::string& file_name) {
+Result<Scene> Scene::from_gltf(const std::string& file_name, bool chonk) {
     const double time = program_time();
     DEFER(std::cout << file_name << " loaded in " << std::round((program_time() - time) * 100.0) / 100.0 << "s" << std::endl);
 
@@ -316,7 +317,7 @@ Result<std::unique_ptr<Scene>> Scene::from_gltf(const std::string& file_name) {
 
     std::cout << file_name << " parsed in " << std::round((program_time() - time) * 100.0) / 100.0 << "s" << std::endl;
 
-    auto scene = std::make_unique<Scene>();
+    Scene scene;
 
     std::unordered_map<int, std::shared_ptr<Texture>> textures;
     std::unordered_map<int, std::shared_ptr<Material>> materials;
@@ -337,6 +338,8 @@ Result<std::unique_ptr<Scene>> Scene::from_gltf(const std::string& file_name) {
             parse_node_transforms(node, gltf, node_transforms);
         }
     }
+
+    std::vector<SceneObject> chonkers;
 
     for(auto [node_index, node_transform] : node_transforms) {
         const tinygltf::Node& node = gltf.nodes[node_index];
@@ -412,11 +415,16 @@ Result<std::unique_ptr<Scene>> Scene::from_gltf(const std::string& file_name) {
                 material = mat;
             }
 
-            auto scene_object = SceneObject(std::make_shared<StaticMesh>(mesh.value), std::move(material));
+            auto scene_object = SceneObject(StaticMesh(mesh.value), std::move(material));
             scene_object.set_transform(node_transform);
-            scene->add_object(std::move(scene_object));
+            const auto& sobb = scene_object.mesh().bb();
+            auto sobbd = sobb.bb() - sobb.aa();
+            if(chonk && sobbd.x/sobbd.y < 1E4 && sobbd.y/sobbd.x < 1E4 && sobbd.z/sobbd.y < 1E4 && sobbd.y/sobbd.z < 1E4 && sobbd.x/sobbd.z < 1E4 && sobbd.z/sobbd.x < 1E4) chonkers.push_back(scene_object); //TODO check what can be chonked
+            else scene.add_object(std::move(scene_object));
         }
     }
+
+    if(chonk && chonkers.size() > 0) scene.add_object(Chunk(chonkers.begin(), chonkers.end()));
 
     return {true, std::move(scene)};
 }

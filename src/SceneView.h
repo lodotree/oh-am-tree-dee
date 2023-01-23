@@ -13,7 +13,8 @@ class SceneView {
         Camera& camera();
         const Camera& camera() const;
 
-        void render() const;
+		void bind_lights(u32 idx = 10) const;
+        void render(bool shade) const;
 
     private:
         const Scene* _scene = nullptr;

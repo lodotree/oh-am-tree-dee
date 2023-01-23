@@ -4,7 +4,7 @@
 
 namespace OM3D {
 
-BoundingCriteria::BoundingCriteria(glm::vec3 center, glm::length_t rad) : _center(center), _radius(rad) {}
+BoundingCriteria::BoundingCriteria(glm::vec3 center, float rad) : _center(center), _radius(rad) {}
 
 bool BoundingCriteria::test(glm::vec3 boxpos, glm::vec3 cp, const Frustum& frustum) const {
 	auto pos = (boxpos+_center)-cp;
@@ -23,8 +23,8 @@ StaticMesh::StaticMesh(const MeshData& data) :
     _index_buffer(data.indices) {
 	glm::vec3 center;
 	for(auto& v : data.vertices) center += v.position / (float) data.vertices.size();
-	glm::length_t radius = 0;
-	for(auto& v : data.vertices) radius = glm::max(radius, (v.position - center).length());
+	float radius = 0;
+	for(auto& v : data.vertices) radius = glm::max(radius, glm::length(v.position - center));
 	_bb = BoundingCriteria(center, radius);
 }
 

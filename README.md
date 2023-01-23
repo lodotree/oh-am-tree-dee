@@ -1,5 +1,11 @@
 # OM3D
 
+Hello!
+
+This is a very buggy and unproven implementation of the G-Buffer rendering. For some reason we had issues with drivers and whatnot, and the software rasterization pipeline (via debugger) was producing the intended results, while HW renderer was not. Also no API errors in either case 🙃.
+
+## Building
+
 Please refer to different git branches for different submissions. Refer to the README in each one of them for more details.
 
 In all the cases, you can build and run the project in the same manner:
@@ -20,15 +26,3 @@ In all the cases, you can build and run the project in the same manner:
 	cmake --build build --config $BUILD_TYPE
 	./build/TP
 	```
-
-## TP-1
-
-Here you can find the implementation of 1st TP.
-
-## TP-2
-
-Here you can find the implementation of last TP.
-
-## 1B-trees
-
-Here is our majestic project 🌳

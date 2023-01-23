@@ -13,13 +13,13 @@ bool SceneObject::test(glm::vec3 camera, const Frustum& frustum) const {
 	return _mesh->test(glm::vec3(_transform[3]), camera, frustum);
 }
 
-void SceneObject::render() const {
+void SceneObject::render(bool shade) const {
     if(!_material || !_mesh) {
         return;
     }
 
    _material->set_uniform(HASH("model"), transform());
-   _material->bind();
+   _material->bind(shade);
     _mesh->draw();
 }
 

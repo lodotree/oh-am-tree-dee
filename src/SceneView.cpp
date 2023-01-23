@@ -13,9 +13,15 @@ const Camera& SceneView::camera() const {
     return _camera;
 }
 
-void SceneView::render() const {
+void SceneView::bind_lights(u32 idx) const {
     if(_scene) {
-        _scene->render(_camera);
+        _scene->bind_light_buffer(_camera, idx);
+    }
+}
+
+void SceneView::render(bool shade) const {
+    if(_scene) {
+        _scene->render(_camera, shade);
     }
 }
 

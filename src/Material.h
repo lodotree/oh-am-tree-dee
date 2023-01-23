@@ -44,8 +44,7 @@ class Material {
             _program->set_uniform(FWD(args)...);
         }
 
-
-        void bind() const;
+        void bind(bool shade) const;
 
         static std::shared_ptr<Material> empty_material();
         static Material textured_material();

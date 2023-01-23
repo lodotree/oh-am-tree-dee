@@ -16,7 +16,7 @@ class SceneObject : NonCopyable {
         SceneObject(std::shared_ptr<StaticMesh> mesh = nullptr, std::shared_ptr<Material> material = nullptr);
 
 		bool test(glm::vec3 camera, const Frustum& frustum) const;
-        void render() const;
+        void render(bool shade) const;
 
         void set_transform(const glm::mat4& tr);
         const glm::mat4& transform() const;

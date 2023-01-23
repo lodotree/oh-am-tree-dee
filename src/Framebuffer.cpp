@@ -24,11 +24,14 @@ Framebuffer::Framebuffer(Texture* depth, Texture** colors, size_t count) : _hand
         _size = depth->size();
     }
 
+    std::vector<GLenum> attachments;
     for(size_t i = 0; i != count; ++i) {
         DEBUG_ASSERT(colors[i]);
         glNamedFramebufferTexture(_handle.get(), GLenum(GL_COLOR_ATTACHMENT0 + i), colors[i]->_handle.get(), 0);
         _size = colors[i]->size();
+        attachments.push_back(GLenum(GL_COLOR_ATTACHMENT0 + i));
     }
+    glNamedFramebufferDrawBuffers(_handle.get(), attachments.size(), attachments.data());
 
     ALWAYS_ASSERT(glCheckNamedFramebufferStatus(_handle.get(), GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "Invalid framebuffer");
 }
@@ -51,7 +54,7 @@ void Framebuffer::bind(bool clear) const {
 
 void Framebuffer::blit(bool depth) const {
     i32 binding = 0;
-    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &binding);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &binding);
     ALWAYS_ASSERT(u32(binding) != _handle.get(), "Framebuffer is bound");
 
     int viewport[4] = {};

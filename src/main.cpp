@@ -135,11 +135,17 @@ int main(int, char**) {
     SceneView scene_view(scene.get());
 
     auto tonemap_program = Program::from_file("tonemap.comp");
+    auto zpass_program = Program::from_files("zpass.frag", "zpass.vert");
+    auto screen_program = Program::from_files("screen.frag", "screen.vert");
 
     Texture depth(window_size, ImageFormat::Depth32_FLOAT);
+    Texture albedo(window_size, ImageFormat::RGBA8_sRGB);
+    Texture normal(window_size, ImageFormat::RGBA8_UNORM);
     Texture lit(window_size, ImageFormat::RGBA16_FLOAT);
     Texture color(window_size, ImageFormat::RGBA8_UNORM);
-    Framebuffer main_framebuffer(&depth, std::array{&lit});
+    // Framebuffer z_framebuffer(&depth);
+    Framebuffer g_framebuffer(&depth, std::array{&albedo, &normal});
+    Framebuffer main_framebuffer(nullptr, std::array{&lit});
     Framebuffer tonemap_framebuffer(nullptr, std::array{&color});
 
     for(;;) {
@@ -156,8 +162,26 @@ int main(int, char**) {
 
         // Render the scene
         {
+            // Z-pass
+            // z_framebuffer.bind();
+            // zpass_program->bind();
+            // scene_view.render(false);
+            // G-pass
+            g_framebuffer.bind();
+            scene_view.render(true);
+            // Screen
+            glDisable(GL_DEPTH_TEST);
+            screen_program->bind();
+			scene_view.bind_lights();
             main_framebuffer.bind();
-            scene_view.render();
+            albedo.bind(0);
+            normal.bind(1);
+            depth.bind(2);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glEnable(GL_DEPTH_TEST);
+            // // Legacy forward pass
+            // main_framebuffer.bind();
+            // scene_view.render(true);
         }
 
         // Apply a tonemap in compute shader

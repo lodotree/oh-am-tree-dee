@@ -17,7 +17,7 @@ void Scene::add_object(PointLight obj) {
     _point_lights.emplace_back(std::move(obj));
 }
 
-void Scene::render(const Camera& camera) const {
+void Scene::bind_light_buffer(const Camera& camera, u32 idx) const {
 	auto frustum = camera.build_frustum();
 
     // Fill and bind frame data buffer
@@ -25,6 +25,7 @@ void Scene::render(const Camera& camera) const {
     {
         auto mapping = buffer.map(AccessType::WriteOnly);
         mapping[0].camera.view_proj = camera.view_proj_matrix();
+        mapping[0].camera.inv_view_proj = glm::inverse(camera.view_proj_matrix());
         mapping[0].point_light_count = u32(_point_lights.size());
         mapping[0].sun_color = glm::vec3(1.0f, 1.0f, 1.0f);
         mapping[0].sun_dir = glm::normalize(_sun_direction);
@@ -45,11 +46,27 @@ void Scene::render(const Camera& camera) const {
             };
         }
     }
-    light_buffer.bind(BufferUsage::Storage, 1);
+    light_buffer.bind(BufferUsage::Storage, idx);
+}
+
+void Scene::render(const Camera& camera, bool shade) const {
+	auto frustum = camera.build_frustum();
+
+    // Fill and bind frame data buffer
+    TypedBuffer<shader::FrameData> buffer(nullptr, 1);
+    {
+        auto mapping = buffer.map(AccessType::WriteOnly);
+        mapping[0].camera.view_proj = camera.view_proj_matrix();
+        mapping[0].camera.inv_view_proj = glm::inverse(camera.view_proj_matrix());
+        mapping[0].point_light_count = u32(_point_lights.size());
+        mapping[0].sun_color = glm::vec3(1.0f, 1.0f, 1.0f);
+        mapping[0].sun_dir = glm::normalize(_sun_direction);
+    }
+    buffer.bind(BufferUsage::Uniform, 0);
 
     // Render every object
     for(const SceneObject& obj : _objects) if(obj.test(camera.position(), frustum)) {
-        obj.render();
+        obj.render(shade);
     }
 }
 

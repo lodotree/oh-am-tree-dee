@@ -17,7 +17,8 @@ class Scene : NonMovable {
 
         static Result<std::unique_ptr<Scene>> from_gltf(const std::string& file_name);
 
-        void render(const Camera& camera) const;
+		void bind_light_buffer(const Camera& camera, u32 idx=1) const;
+        void render(const Camera& camera, bool shade) const;
 
         void add_object(SceneObject obj);
         void add_object(PointLight obj);
